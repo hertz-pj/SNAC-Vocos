@@ -1,0 +1,97 @@
+seed_everything: 3407
+
+data:
+  class_path: decoder.dataset.VocosDataModule
+  init_args:
+    train_params:
+      filelist_path: "./data/train.list"
+      sampling_rate: 16000
+      num_samples: 48000
+      batch_size: 16  # 20
+      num_workers: 16
+
+    val_params:
+      filelist_path: "./data/valid.list"
+      sampling_rate: 16000
+      num_samples: 48000
+      batch_size: 4   # 10
+      num_workers: 8
+
+model:
+  class_path: decoder.experiment.SnacVocos
+  init_args:
+    sample_rate: 16000
+    initial_learning_rate: 2e-4
+    mel_loss_coeff: 45
+    mrd_loss_coeff: 1.0
+    num_warmup_steps: 15000 # Optimizers warmup steps
+    pretrain_mel_steps: 0  # 0 means GAN objective from the first iteration
+
+    # automatic evaluation
+    evaluate_utmos: false
+    evaluate_pesq: true
+    evaluate_periodicty: true
+
+    resume: false
+    resume_config: ./path/to/xxx.yaml
+    resume_model: ./path/to/xxx.ckpt
+
+    feature_extractor:
+      class_path: decoder.feature_extractors.MultiScaleFeatures
+      init_args:
+        dimention: 512
+        ratios: [5,5,4,2]
+        num_quantizers: 4
+        codebook_size: 1024
+        kmeans_init: true
+        quantize_dropout: true
+        rand_num_quant: [4,4,4,4]
+        vq_scales: [8,4,2,1]
+        ema_decay: 0.95
+        sample_rate: 16000
+
+    backbone:
+      class_path: decoder.models.VocosBackbone
+      init_args:
+        input_channels: 512
+        dim: 768
+        intermediate_dim: 2304
+        num_layers: 12
+        adanorm_num_embeddings: 4
+
+    head:
+      class_path: decoder.heads.ISTFTHead
+      init_args:
+        dim: 768
+        n_fft: 1280
+        hop_length: 200
+        padding: same
+
+trainer:
+  logger:
+    class_path: pytorch_lightning.loggers.TensorBoardLogger
+    init_args:
+      save_dir: ./trained_models/snac_vocos/mscodec/snac_vocos_nq4_scale8421_16khz
+  callbacks:
+    - class_path: pytorch_lightning.callbacks.LearningRateMonitor
+    - class_path: pytorch_lightning.callbacks.ModelSummary
+      init_args:
+        max_depth: 2
+    - class_path: pytorch_lightning.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val_loss
+        filename: mscodec_checkpoint_{epoch}_{step}_{val_loss:.4f}
+        save_top_k: 10
+        save_last: true
+    - class_path: decoder.helpers.GradNormCallback
+
+  # Lightning calculates max_steps across all optimizer steps (rather than number of batches)
+  # This equals to 1M steps per generator and 1M per discriminator
+  val_check_interval: 5000
+  max_steps: 200000000
+  # You might want to limit val batches when evaluating all the metrics, as they are time-consuming
+  limit_val_batches: 100
+  accelerator: gpu
+  strategy: ddp
+  devices: [0,1,2,3]
+  log_every_n_steps: 1000
