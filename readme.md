@@ -15,6 +15,12 @@ pip install -r requirements.txt
 ## Infer
 Refer to the [infer.py](./infer.py) for inference instructions and usage examples.
 
+## Available Models
+| Model name | Huggingface | Corpus | Domain |
+|:------------|:--------|:--------|:--------|
+|snac_vocos_16khz_hop200_scale8421_1kh | [🤗](https://huggingface.co/hertz-pj/snac-vocos) | 1k hours | Speech(Mandarin/English) |
+
+
 ## Training
 1、Prepare a filelist of audio files for the training and validation set, e.g. [train.list](./data/train.list).  
 2、Fill a config file, e.g. [snac_vocos.yaml](./config/snac_vocos_nq4_scale8421_16khz.yaml). The main parameters to pay attention to are batch_size, filelist_path, save_dir, and device.  
@@ -25,7 +31,7 @@ python train.py fit --config ./configs/snac_vocos.yaml
 
 ## TODO
 - [x] Release code
-- [ ] Release a checkpoint trained with 1k hours of speech(Mandarin/English).
+- [x] Release a checkpoint trained with 1k hours of speech(Mandarin/English).
 - [ ] Demo page.
 
 
